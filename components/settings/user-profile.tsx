@@ -41,10 +41,13 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
 
     try {
       console.log("[v0] Updating profile with data:", formData)
-      const { error } = await supabase.from("profiles").update(formData).eq("id", userId)
+      const { error } = await supabase
+        .from("profiles")
+        .update(formData)
+        .eq("id", userId)
 
       if (error) throw error
-      
+
       setSuccess(true)
       setIsEditing(false)
       setTimeout(() => setSuccess(false), 3000)
@@ -65,12 +68,21 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
         </CardTitle>
         <CardDescription>Manage your account information</CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={profile?.email || ""} disabled className="h-9 bg-muted" />
-            <p className="text-xs text-muted-foreground mt-1">Cannot be changed</p>
+            <Input
+              id="email"
+              type="email"
+              value={profile?.email || ""}
+              disabled
+              className="h-9 bg-muted"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Cannot be changed
+            </p>
           </div>
 
           <div>
@@ -78,7 +90,9 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
             <Input
               id="name"
               value={formData.full_name}
-              onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, full_name: e.target.value })
+              }
               disabled={!isEditing}
               className="h-9"
             />
@@ -86,7 +100,12 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
 
           <div>
             <Label htmlFor="role">Role</Label>
-            <Input id="role" value={profile?.role || "admin"} disabled className="h-9 bg-muted capitalize" />
+            <Input
+              id="role"
+              value={profile?.role || "admin"}
+              disabled
+              className="h-9 bg-muted capitalize"
+            />
           </div>
 
           {error && (
@@ -94,7 +113,7 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-600">
               Profile updated successfully!
@@ -103,34 +122,36 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
 
           <div className="flex gap-2 pt-4">
             {!isEditing ? (
-              <Button 
-                type="button" 
-                onClick={() => {
-                  setIsEditing(true)
-                  setError(null)
-                  setSuccess(false)
-                }} 
-                className="w-full"
-              >
-                Edit Profile
+              <Button className="w-full" asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true)
+                    setError(null)
+                    setSuccess(false)
+                  }}
+                >
+                  Edit Profile
+                </button>
               </Button>
             ) : (
               <>
                 <Button type="submit" disabled={isLoading} className="flex-1">
                   {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditing(false)
-                    setFormData({ full_name: profile?.full_name || "" })
-                    setError(null)
-                    setSuccess(false)
-                  }} 
-                  className="flex-1"
-                >
-                  Cancel
+
+                <Button variant="outline" className="flex-1" asChild>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setFormData({ full_name: profile?.full_name || "" })
+                      setError(null)
+                      setSuccess(false)
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </Button>
               </>
             )}

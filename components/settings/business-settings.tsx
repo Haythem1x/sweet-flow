@@ -46,7 +46,7 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
 
     try {
       console.log("[v0] Updating business settings with data:", formData)
-      
+
       if (settings) {
         const { error } = await supabase.from("business_settings").update(formData).eq("id", settings.id)
         if (error) throw error
@@ -138,7 +138,7 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
               {error}
             </div>
           )}
-          
+
           {success && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-600">
               Business settings updated successfully!
@@ -147,39 +147,41 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
 
           <div className="flex gap-2 pt-4">
             {!isEditing ? (
-              <Button 
-                type="button" 
-                onClick={() => {
-                  setIsEditing(true)
-                  setError(null)
-                  setSuccess(false)
-                }} 
-                className="w-full"
-              >
-                Edit Settings
+              <Button className="w-full" asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true)
+                    setError(null)
+                    setSuccess(false)
+                  }}
+                >
+                  Edit Settings
+                </button>
               </Button>
             ) : (
               <>
                 <Button type="submit" disabled={isLoading} className="flex-1">
                   {isLoading ? "Saving..." : "Save Settings"}
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => {
-                    setIsEditing(false)
-                    setFormData({
-                      business_name: settings?.business_name || "My Business",
-                      currency: settings?.currency || "TND",
-                      tax_rate: settings?.tax_rate || 0,
-                      invoice_prefix: settings?.invoice_prefix || "INV-",
-                    })
-                    setError(null)
-                    setSuccess(false)
-                  }} 
-                  className="flex-1"
-                >
-                  Cancel
+
+                <Button variant="outline" className="flex-1" asChild>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false)
+                      setFormData({
+                        business_name: settings?.business_name || "My Business",
+                        currency: settings?.currency || "TND",
+                        tax_rate: settings?.tax_rate || 0,
+                        invoice_prefix: settings?.invoice_prefix || "INV-",
+                      })
+                      setError(null)
+                      setSuccess(false)
+                    }}
+                  >
+                    Cancel
+                  </button>
                 </Button>
               </>
             )}
