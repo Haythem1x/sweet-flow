@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { usePathname } from 'next/navigation'
 import { useState } from "react"
+import { motion } from "framer-motion"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: "📊" },
@@ -23,7 +24,7 @@ export function Sidebar() {
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="md:hidden fixed top-4 left-4 z-50 p-3 bg-primary text-primary-foreground rounded-lg shadow-lg touch-manipulation active:scale-95 transition-transform"
+        className="md:hidden fixed top-4 left-4 z-50 p-3 bg-primary text-primary-foreground rounded-lg shadow-lg active:scale-95 transition-transform"
         aria-label="Toggle menu"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,7 +36,6 @@ export function Sidebar() {
         </svg>
       </button>
 
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed top-0 left-0 z-40 w-64 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 md:translate-x-0 overflow-y-auto",
@@ -63,13 +63,20 @@ export function Sidebar() {
                 href={item.href}
                 onClick={() => setIsOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg transition-colors touch-manipulation active:scale-98",
+                  "flex items-center gap-3 px-3 sm:px-4 py-3 sm:py-2.5 rounded-lg transition-colors active:scale-98",
                   isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-md"
                     : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 )}
               >
-                <span className="text-lg sm:text-base">{item.icon}</span>
+                <motion.span
+                  className="text-lg sm:text-base"
+                  animate={isActive ? { y: [0, -5, 0], scale: [1, 1.2, 1] } : {}}
+                  whileHover={!isActive ? { rotate: [0, -15, 15, -15, 15, 0], scale: 1.2 } : {}}
+                  transition={{ duration: 0.8, repeat: isActive ? Infinity : 0 }}
+                >
+                  {item.icon}
+                </motion.span>
                 <span className="text-sm sm:text-base">{item.name}</span>
               </Link>
             )
@@ -79,7 +86,7 @@ export function Sidebar() {
 
       {isOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-30 touch-manipulation"
+          className="md:hidden fixed inset-0 bg-black/50 z-30"
           onClick={() => setIsOpen(false)}
           onTouchStart={() => setIsOpen(false)}
         />
