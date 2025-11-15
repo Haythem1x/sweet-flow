@@ -8,15 +8,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useRouter } from 'next/navigation'
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { ChevronRight } from 'lucide-react'
+import { LoadingScreen } from "@/components/loading-screen"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isPageLoading, setIsPageLoading] = useState(true)
   const router = useRouter()
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsPageLoading(false)
+    }, 1500)
+    
+    return () => clearTimeout(timer)
+  }, [])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,18 +51,19 @@ export default function LoginPage() {
     }
   }
 
+  if (isPageLoading) {
+    return <LoadingScreen />
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
-      {/* Background Image */}
       <div 
         className="absolute inset-0 bg-cover bg-center" 
         style={{ backgroundImage: "url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Gemini_Generated_Image_11tixf11tixf11ti-61t32DDnz2udx2nMvbHjmRxCU7OImi.png')" }}
       />
       
-      {/* Overlay for better readability */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
-      {/* Login Card */}
       <Card className="relative z-10 w-full max-w-md p-8 shadow-2xl border-2 bg-background/95 backdrop-blur-md">
         <div className="space-y-6">
           <div className="space-y-2 text-center">
