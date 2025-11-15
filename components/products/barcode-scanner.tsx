@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Camera, X } from 'lucide-react'
+import { BrowserMultiFormatReader } from '@zxing/library'
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void
@@ -11,10 +12,10 @@ interface BarcodeScannerProps {
 
 export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isScanning, setIsScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const readerRef = useRef<BrowserMultiFormatReader | null>(null)
 
   useEffect(() => {
     startCamera()
@@ -33,6 +34,8 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
         videoRef.current.srcObject = stream
         streamRef.current = stream
         setIsScanning(true)
+        
+        readerRef.current = new BrowserMultiFormatReader()
       }
     } catch (err) {
       setError("Unable to access camera. Please grant camera permissions.")
@@ -45,43 +48,29 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
     }
-  }
-
-  const captureAndDecode = async () => {
-    if (!videoRef.current || !canvasRef.current) return
-
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const context = canvas.getContext("2d")
-
-    if (!context) return
-
-    // Set canvas size to match video
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-    // Get image data
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height)
-    
-    // Simple barcode detection (this is a basic implementation)
-    // In production, you'd use a library like @zxing/library or quagga2
-    const barcode = await simulateBarcodeDetection(imageData)
-    
-    if (barcode) {
-      onScan(barcode)
-      stopCamera()
-      onClose()
+    if (readerRef.current) {
+      readerRef.current.reset()
     }
   }
 
-  // Simulate barcode detection - in production use a real barcode library
-  const simulateBarcodeDetection = async (imageData: ImageData): Promise<string | null> => {
-    // This is a placeholder - integrate with a real barcode scanning library
-    // For now, we'll just prompt the user to enter manually
-    return null
+  const captureAndDecode = async () => {
+    if (!videoRef.current || !readerRef.current) return
+
+    try {
+      const result = await readerRef.current.decodeFromVideoElement(videoRef.current)
+      
+      if (result) {
+        const barcode = result.getText()
+        onScan(barcode)
+        stopCamera()
+        onClose()
+      }
+    } catch (err) {
+      // If no barcode detected, show error or let user try again
+      console.log("No barcode detected, try again")
+      setError("No barcode detected. Please try again or enter manually.")
+      setTimeout(() => setError(null), 2000)
+    }
   }
 
   const handleManualEntry = () => {
@@ -111,34 +100,28 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
       </div>
 
       <div className="flex-1 relative flex items-center justify-center">
-        {error ? (
-          <div className="text-white text-center p-4">
-            <p className="mb-4">{error}</p>
-            <Button onClick={handleManualEntry} variant="outline" className="bg-white text-black">
-              Enter Manually
-            </Button>
+        {error && (
+          <div className="absolute top-4 left-4 right-4 bg-red-500/90 text-white p-3 rounded-lg z-10 text-center">
+            {error}
           </div>
-        ) : (
-          <>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="max-w-full max-h-full"
-            />
-            <canvas ref={canvasRef} className="hidden" />
-            
-            {/* Scanning frame overlay */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-64 h-40 border-2 border-primary rounded-lg">
-                <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
-              </div>
-            </div>
-          </>
         )}
+        
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="max-w-full max-h-full"
+        />
+        
+        {/* Scanning frame overlay */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-64 h-40 border-2 border-primary rounded-lg relative">
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+          </div>
+        </div>
       </div>
 
       <div className="p-4 bg-black/80 space-y-2">
