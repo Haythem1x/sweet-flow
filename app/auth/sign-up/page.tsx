@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { useState } from "react"
 
 export default function SignUpPage() {
@@ -32,32 +32,62 @@ export default function SignUpPage() {
       return
     }
 
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters")
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_SITE_URL
-            ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/welcome`
-            : `${window.location.origin}/auth/welcome`,
           data: {
             business_name: businessName,
           },
         },
       })
-      if (error) throw error
-      router.push("/auth/check-email")
+      
+      if (error) {
+        if (error.message.includes("rate limit")) {
+          setError("Too many sign-up attempts. Please try again in a few minutes.")
+        } else if (error.message.includes("email")) {
+          setError("Email service temporarily unavailable. Please contact support or try again later.")
+        } else {
+          setError(error.message)
+        }
+        setIsLoading(false)
+        return
+      }
+
+      if (data?.user && data?.session) {
+        // User is logged in immediately (email confirmation disabled)
+        router.push("/auth/welcome")
+      } else if (data?.user && !data?.session) {
+        // Email confirmation required
+        router.push("/auth/check-email")
+      }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
-    } finally {
+      setError(error instanceof Error ? error.message : "An error occurred during sign-up")
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-secondary to-background p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-2 shadow-lg">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4 relative"
+      style={{
+        backgroundImage: 'url(/images/gemini-generated-image-11tixf11tixf11ti.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
+      <div className="absolute inset-0 bg-black/50" />
+      
+      <div className="w-full max-w-md relative z-10">
+        <Card className="border-2 shadow-2xl backdrop-blur-sm bg-white/95">
           <CardHeader className="space-y-2 text-center">
             <div className="flex justify-center mb-2">
               <div className="bg-primary text-primary-foreground rounded-lg p-3">
@@ -67,7 +97,7 @@ export default function SignUpPage() {
               </div>
             </div>
             <CardTitle className="text-2xl font-bold">Create Account</CardTitle>
-            <CardDescription>Join SweetFlow</CardDescription>
+            <CardDescription>Join SweetFlow Distribution</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignUp} className="space-y-4">
@@ -100,8 +130,9 @@ export default function SignUpPage() {
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Create a strong password"
+                  placeholder="At least 6 characters"
                   required
+                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-10"
@@ -119,7 +150,11 @@ export default function SignUpPage() {
                   className="h-10"
                 />
               </div>
-              {error && <p className="text-sm text-destructive">{error}</p>}
+              {error && (
+                <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20">
+                  <p className="text-sm text-destructive">{error}</p>
+                </div>
+              )}
               <Button type="submit" className="w-full h-10" disabled={isLoading}>
                 {isLoading ? "Creating account..." : "Sign up"}
               </Button>
