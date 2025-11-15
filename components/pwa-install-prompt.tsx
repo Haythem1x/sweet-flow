@@ -6,16 +6,14 @@ import { X, Download } from 'lucide-react'
 
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
-  const [showPrompt, setShowPrompt] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(true) // Always show for testing
+  const [isInstallable, setIsInstallable] = useState(false)
 
   useEffect(() => {
     const handler = (e: Event) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault()
-      // Stash the event so it can be triggered later
       setDeferredPrompt(e)
-      // Show the install prompt
-      setShowPrompt(true)
+      setIsInstallable(true)
     }
 
     window.addEventListener("beforeinstallprompt", handler)
@@ -37,17 +35,19 @@ export function PWAInstallPrompt() {
   }, [])
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return
+    if (!deferredPrompt) {
+      // If not installable via prompt, show instructions
+      alert(
+        'To install SweetFlow:\n\n' +
+        'Android Chrome: Tap menu (⋮) → "Install app" or "Add to Home screen"\n' +
+        'iOS Safari: Tap share (↑) → "Add to Home Screen"'
+      )
+      return
+    }
 
-    // Show the install prompt
     deferredPrompt.prompt()
-
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice
-
     console.log('[v0] User choice:', outcome)
-
-    // Clear the deferred prompt
     setDeferredPrompt(null)
     setShowPrompt(false)
   }
@@ -68,7 +68,9 @@ export function PWAInstallPrompt() {
           <div className="flex-1">
             <h3 className="font-semibold text-sm mb-1">Install SweetFlow</h3>
             <p className="text-xs text-amber-100 mb-3">
-              Install our app for a better experience with offline access and quick launch.
+              {isInstallable 
+                ? "Install our app for a better experience with offline access and quick launch."
+                : "Add SweetFlow to your home screen for quick access and offline functionality."}
             </p>
             <div className="flex gap-2">
               <Button
@@ -76,7 +78,7 @@ export function PWAInstallPrompt() {
                 size="sm"
                 className="bg-amber-700 hover:bg-amber-600 text-white"
               >
-                Install
+                {isInstallable ? "Install" : "How to Install"}
               </Button>
               <Button
                 onClick={handleDismiss}
