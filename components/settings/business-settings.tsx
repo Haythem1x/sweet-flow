@@ -147,7 +147,15 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
 
           <div className="flex gap-2 pt-4">
             {!isEditing ? (
-              <Button type="button" onClick={() => setIsEditing(true)} className="w-full">
+              <Button 
+                type="button" 
+                onClick={() => {
+                  setIsEditing(true)
+                  setError(null)
+                  setSuccess(false)
+                }} 
+                className="w-full"
+              >
                 Edit Settings
               </Button>
             ) : (
@@ -155,7 +163,22 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
                 <Button type="submit" disabled={isLoading} className="flex-1">
                   {isLoading ? "Saving..." : "Save Settings"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} className="flex-1">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditing(false)
+                    setFormData({
+                      business_name: settings?.business_name || "My Business",
+                      currency: settings?.currency || "TND",
+                      tax_rate: settings?.tax_rate || 0,
+                      invoice_prefix: settings?.invoice_prefix || "INV-",
+                    })
+                    setError(null)
+                    setSuccess(false)
+                  }} 
+                  className="flex-1"
+                >
                   Cancel
                 </Button>
               </>

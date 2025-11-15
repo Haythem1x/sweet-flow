@@ -103,7 +103,15 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
 
           <div className="flex gap-2 pt-4">
             {!isEditing ? (
-              <Button type="button" onClick={() => setIsEditing(true)} className="w-full">
+              <Button 
+                type="button" 
+                onClick={() => {
+                  setIsEditing(true)
+                  setError(null)
+                  setSuccess(false)
+                }} 
+                className="w-full"
+              >
                 Edit Profile
               </Button>
             ) : (
@@ -111,7 +119,17 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
                 <Button type="submit" disabled={isLoading} className="flex-1">
                   {isLoading ? "Saving..." : "Save Changes"}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setIsEditing(false)} className="flex-1">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsEditing(false)
+                    setFormData({ full_name: profile?.full_name || "" })
+                    setError(null)
+                    setSuccess(false)
+                  }} 
+                  className="flex-1"
+                >
                   Cancel
                 </Button>
               </>
