@@ -22,6 +22,7 @@ export function Sidebar() {
 
   return (
     <>
+      {/* Hamburger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="md:hidden fixed top-4 left-4 z-50 p-3 bg-primary text-primary-foreground rounded-lg shadow-lg active:scale-95 transition-transform"
@@ -36,16 +37,22 @@ export function Sidebar() {
         </svg>
       </button>
 
+      {/* Sidebar */}
       <aside
         className={cn(
           "fixed top-0 left-0 z-40 w-64 h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-transform duration-300 md:translate-x-0 overflow-y-auto",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}
       >
+        {/* Logo */}
         <div className="p-4 sm:p-6 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
             <div className="bg-sidebar-primary text-sidebar-primary-foreground rounded-lg p-2">
-              <span className="text-lg font-bold">🍫</span>
+              <img
+                src="/Gemini_Generated_Image_58b47l58b47l58b4.png" // logo path in /public
+                alt="SweetFlow Logo"
+                className="w-8 h-8 object-contain"
+              />
             </div>
             <div>
               <h1 className="font-bold text-base sm:text-lg">SweetFlow</h1>
@@ -54,6 +61,7 @@ export function Sidebar() {
           </div>
         </div>
 
+        {/* Navigation */}
         <nav className="p-3 sm:p-4 space-y-1 sm:space-y-2">
           {navigation.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
@@ -84,6 +92,7 @@ export function Sidebar() {
         </nav>
       </aside>
 
+      {/* Overlay for mobile */}
       {isOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/50 z-30"
