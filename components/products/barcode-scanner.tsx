@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Camera, X } from 'lucide-react'
-import { BrowserMultiFormatReader } from '@zxing/library'
 
 interface BarcodeScannerProps {
   onScan: (barcode: string) => void
@@ -12,10 +11,11 @@ interface BarcodeScannerProps {
 
 export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isScanning, setIsScanning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
-  const readerRef = useRef<BrowserMultiFormatReader | null>(null)
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     startCamera()
@@ -27,7 +27,11 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" } // Use back camera on mobile
+        video: { 
+          facingMode: "environment", // Use back camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       })
       
       if (videoRef.current) {
@@ -35,7 +39,8 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
         streamRef.current = stream
         setIsScanning(true)
         
-        readerRef.current = new BrowserMultiFormatReader()
+        // Start continuous scanning
+        startContinuousScanning()
       }
     } catch (err) {
       setError("Unable to access camera. Please grant camera permissions.")
@@ -44,32 +49,71 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   }
 
   const stopCamera = () => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+    }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
     }
-    if (readerRef.current) {
-      readerRef.current.reset()
+  }
+
+  const startContinuousScanning = () => {
+    // @ts-ignore - Barcode Detection API might not be in types yet
+    if ('BarcodeDetector' in window) {
+      // @ts-ignore
+      const barcodeDetector = new window.BarcodeDetector({
+        formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e']
+      })
+
+      scanIntervalRef.current = setInterval(async () => {
+        if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+          try {
+            const barcodes = await barcodeDetector.detect(videoRef.current)
+            if (barcodes.length > 0) {
+              const barcode = barcodes[0].rawValue
+              onScan(barcode)
+              stopCamera()
+              onClose()
+            }
+          } catch (err) {
+            console.log("Barcode detection error:", err)
+          }
+        }
+      }, 500) // Scan every 500ms
     }
   }
 
   const captureAndDecode = async () => {
-    if (!videoRef.current || !readerRef.current) return
+    if (!videoRef.current || !canvasRef.current) return
 
-    try {
-      const result = await readerRef.current.decodeFromVideoElement(videoRef.current)
-      
-      if (result) {
-        const barcode = result.getText()
-        onScan(barcode)
-        stopCamera()
-        onClose()
+    // @ts-ignore
+    if ('BarcodeDetector' in window) {
+      try {
+        // @ts-ignore
+        const barcodeDetector = new window.BarcodeDetector({
+          formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'upc_a', 'upc_e']
+        })
+        
+        const barcodes = await barcodeDetector.detect(videoRef.current)
+        
+        if (barcodes.length > 0) {
+          const barcode = barcodes[0].rawValue
+          onScan(barcode)
+          stopCamera()
+          onClose()
+        } else {
+          setError("No barcode detected. Please try again or enter manually.")
+          setTimeout(() => setError(null), 2000)
+        }
+      } catch (err) {
+        console.error("Barcode detection error:", err)
+        setError("Failed to detect barcode. Please enter manually.")
+        setTimeout(() => setError(null), 2000)
       }
-    } catch (err) {
-      // If no barcode detected, show error or let user try again
-      console.log("No barcode detected, try again")
-      setError("No barcode detected. Please try again or enter manually.")
-      setTimeout(() => setError(null), 2000)
+    } else {
+      setError("Barcode scanning not supported on this device. Please enter manually.")
+      setTimeout(() => setError(null), 3000)
     }
   }
 
@@ -112,6 +156,8 @@ export function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
           playsInline
           className="max-w-full max-h-full"
         />
+        
+        <canvas ref={canvasRef} className="hidden" />
         
         {/* Scanning frame overlay */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
