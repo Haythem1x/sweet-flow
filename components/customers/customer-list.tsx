@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CustomerModal } from "./customer-modal"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 interface Customer {
   id: string
@@ -82,8 +82,7 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
             className="h-10"
           />
 
-          {/* Customers table */}
-          <div className="overflow-x-auto">
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr className="border-b">
@@ -134,6 +133,64 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
                 )}
               </tbody>
             </table>
+          </div>
+
+          <div className="md:hidden space-y-3">
+            {filteredCustomers.length === 0 ? (
+              <div className="text-center p-6 text-muted-foreground">No customers found</div>
+            ) : (
+              filteredCustomers.map((customer) => (
+                <Card key={customer.id} className="shadow-sm">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-base leading-tight">{customer.shop_name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{customer.owner_name}</p>
+                      </div>
+                      {customer.outstanding_balance > 0 && (
+                        <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ml-2">
+                          {customer.outstanding_balance.toFixed(3)} TND
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-1.5 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">📞</span>
+                        <a href={`tel:${customer.phone}`} className="text-primary hover:underline">
+                          {customer.phone}
+                        </a>
+                      </div>
+                      {customer.address && (
+                        <div className="flex items-start gap-2">
+                          <span className="text-muted-foreground">📍</span>
+                          <span className="text-muted-foreground text-xs leading-relaxed">{customer.address}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(customer)}
+                        className="flex-1 h-9 text-xs"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(customer.id)}
+                        className="flex-1 h-9 text-xs"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

@@ -24,18 +24,18 @@ export default async function CustomersPage() {
 
   return (
     <DashboardLayout title="Customers">
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         <CustomerActions userId={user.id} />
         
         <Tabs defaultValue="list" className="w-full">
-          <TabsList>
-            <TabsTrigger value="list">List View</TabsTrigger>
-            <TabsTrigger value="map">Map View</TabsTrigger>
+          <TabsList className="w-full sm:w-auto grid grid-cols-2">
+            <TabsTrigger value="list" className="text-sm">List View</TabsTrigger>
+            <TabsTrigger value="map" className="text-sm">Map View</TabsTrigger>
           </TabsList>
-          <TabsContent value="list" className="mt-6">
+          <TabsContent value="list" className="mt-4 sm:mt-6">
             <CustomerList customers={customers || []} userId={user.id} />
           </TabsContent>
-          <TabsContent value="map" className="mt-6">
+          <TabsContent value="map" className="mt-4 sm:mt-6">
             <CustomerMapView customers={customers || []} />
           </TabsContent>
         </Tabs>
