@@ -70,26 +70,26 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <span>🧾</span> Invoices
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-xs sm:text-sm">
             Total: {invoices.length} • Paid: {stats.paid} • Partial: {stats.partial} • Unpaid: {stats.unpaid}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="flex gap-4 flex-col md:flex-row">
+          <div className="flex gap-4 flex-col sm:flex-row">
             <Input
               placeholder="Search invoice number..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10 md:flex-1"
+              className="h-10 sm:flex-1 text-sm"
             />
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="h-10 px-3 border border-input rounded-md bg-background"
+              className="h-10 px-3 border border-input rounded-md bg-background text-sm"
             >
               <option value="all">All Status</option>
               <option value="paid">Paid</option>
@@ -98,8 +98,78 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
             </select>
           </div>
 
-          {/* Invoices table */}
-          <div className="overflow-x-auto">
+          {/* Mobile view */}
+          <div className="block md:hidden space-y-3">
+            {filteredInvoices.length === 0 ? (
+              <div className="text-center p-6 text-muted-foreground text-sm">No invoices found</div>
+            ) : (
+              filteredInvoices.map((invoice) => {
+                const outstanding = invoice.total_amount - invoice.paid_amount
+                return (
+                  <Card key={invoice.id}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-mono font-semibold text-base">{invoice.invoice_number}</h3>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(invoice.invoice_date).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            invoice.payment_status === "paid"
+                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                              : invoice.payment_status === "partial"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+                                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                          }`}
+                        >
+                          {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Total:</span>
+                          <p className="font-semibold">{invoice.total_amount.toFixed(3)} TND</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Paid:</span>
+                          <p className="font-semibold">{invoice.paid_amount.toFixed(3)} TND</p>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Outstanding:</span>
+                          <p className="font-semibold text-orange-600">{outstanding.toFixed(3)} TND</p>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1 text-xs bg-transparent touch-manipulation"
+                          onClick={() => handleView(invoice)}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(invoice.id)}
+                          className="flex-1 text-xs touch-manipulation"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )
+              })
+            )}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr className="border-b">

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 import { useState } from "react"
 
 interface TopBarProps {
@@ -21,9 +21,15 @@ export function TopBar({ title }: TopBarProps) {
   }
 
   return (
-    <div className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-card border-b border-border flex items-center justify-between px-6 z-20">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      <Button variant="outline" onClick={handleLogout} disabled={isLoading} className="text-sm bg-transparent">
+    <div className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 z-20">
+      <h2 className="text-lg sm:text-xl font-semibold truncate mr-4">{title}</h2>
+      <Button 
+        variant="outline" 
+        onClick={handleLogout} 
+        disabled={isLoading} 
+        className="text-xs sm:text-sm bg-transparent whitespace-nowrap touch-manipulation"
+        size="sm"
+      >
         {isLoading ? "Logging out..." : "Logout"}
       </Button>
     </div>

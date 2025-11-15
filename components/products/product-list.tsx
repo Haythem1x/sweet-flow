@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProductModal } from "./product-modal"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 interface Product {
   id: string
@@ -65,11 +65,11 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 text-base sm:text-lg">
               <span>📦</span> Product Inventory
             </div>
           </CardTitle>
-          <CardDescription>{products.length} products in system</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">{products.length} products in system</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Search and alerts */}
@@ -78,20 +78,89 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
               placeholder="Search by product name or barcode..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-10"
+              className="h-10 text-sm sm:text-base"
             />
 
             {lowStockProducts.length > 0 && (
               <div className="p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
-                <p className="text-sm font-semibold text-orange-900 dark:text-orange-100">
+                <p className="text-xs sm:text-sm font-semibold text-orange-900 dark:text-orange-100">
                   ⚠️ {lowStockProducts.length} products with low stock ({`<50 units`})
                 </p>
               </div>
             )}
           </div>
 
-          {/* Products table */}
-          <div className="overflow-x-auto">
+          {/* Mobile view */}
+          <div className="block md:hidden space-y-3">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center p-6 text-muted-foreground text-sm">No products found</div>
+            ) : (
+              filteredProducts.map((product) => (
+                <Card key={product.id} className={product.stock_quantity < 50 ? "border-orange-500" : ""}>
+                  <CardContent className="p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1 flex-1">
+                        <h3 className="font-semibold text-base">{product.name}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {product.category} • {product.brand}
+                        </p>
+                      </div>
+                      {product.stock_quantity < 50 && (
+                        <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100 px-2 py-1 rounded">
+                          Low Stock
+                        </span>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">Cost:</span>
+                        <p className="font-semibold">{product.cost_price.toFixed(3)} TND</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Selling:</span>
+                        <p className="font-semibold">{product.selling_price.toFixed(3)} TND</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Stock:</span>
+                        <p className={`font-semibold ${product.stock_quantity < 50 ? "text-orange-600" : ""}`}>
+                          {product.stock_quantity} units
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Expiry:</span>
+                        <p className="font-semibold">
+                          {product.expiry_date ? new Date(product.expiry_date).toLocaleDateString() : "N/A"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleEdit(product)} 
+                        className="flex-1 text-xs touch-manipulation"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(product.id)}
+                        className="flex-1 text-xs touch-manipulation"
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+
+          {/* Desktop table view */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
                 <tr className="border-b">
