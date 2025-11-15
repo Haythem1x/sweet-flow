@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 interface Profile {
   id: string
@@ -28,21 +28,30 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
     full_name: profile?.full_name || "",
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
+    setSuccess(false)
 
     try {
+      console.log("[v0] Updating profile with data:", formData)
       const { error } = await supabase.from("profiles").update(formData).eq("id", userId)
 
       if (error) throw error
+      
+      setSuccess(true)
       setIsEditing(false)
+      setTimeout(() => setSuccess(false), 3000)
       router.refresh()
     } catch (error) {
-      console.error("Error updating profile:", error)
+      console.error("[v0] Error updating profile:", error)
+      setError(error instanceof Error ? error.message : "Failed to update profile")
     } finally {
       setIsLoading(false)
     }
@@ -79,6 +88,18 @@ export function UserProfile({ profile, userId }: UserProfileProps) {
             <Label htmlFor="role">Role</Label>
             <Input id="role" value={profile?.role || "admin"} disabled className="h-9 bg-muted capitalize" />
           </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-600">
+              Profile updated successfully!
+            </div>
+          )}
 
           <div className="flex gap-2 pt-4">
             {!isEditing ? (

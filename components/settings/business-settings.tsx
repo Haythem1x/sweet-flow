@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 interface BusinessSettings {
   id: string
@@ -33,31 +33,38 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
     invoice_prefix: settings?.invoice_prefix || "INV-",
   })
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
   const supabase = createClient()
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
+    setSuccess(false)
 
     try {
+      console.log("[v0] Updating business settings with data:", formData)
+      
       if (settings) {
         const { error } = await supabase.from("business_settings").update(formData).eq("id", settings.id)
-
         if (error) throw error
       } else {
         const { error } = await supabase.from("business_settings").insert({
           organization_id: userId,
           ...formData,
         })
-
         if (error) throw error
       }
 
+      setSuccess(true)
       setIsEditing(false)
+      setTimeout(() => setSuccess(false), 3000)
       router.refresh()
     } catch (error) {
-      console.error("Error updating settings:", error)
+      console.error("[v0] Error updating settings:", error)
+      setError(error instanceof Error ? error.message : "Failed to update business settings")
     } finally {
       setIsLoading(false)
     }
@@ -125,6 +132,18 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
               />
             </div>
           </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-600">
+              {error}
+            </div>
+          )}
+          
+          {success && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-600">
+              Business settings updated successfully!
+            </div>
+          )}
 
           <div className="flex gap-2 pt-4">
             {!isEditing ? (
