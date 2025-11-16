@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from 'next/navigation'
-import { Camera } from 'lucide-react'
 import { BarcodeScanner } from "./barcode-scanner"
 
 interface Product {
@@ -213,8 +212,9 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
                   size="icon"
                   onClick={() => setShowScanner(true)}
                   className="shrink-0"
+                  title="Scan Barcode"
                 >
-                  <Camera className="h-4 w-4" />
+                  📷
                 </Button>
               </div>
             </div>

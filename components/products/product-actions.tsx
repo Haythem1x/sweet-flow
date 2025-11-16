@@ -13,7 +13,7 @@ export function ProductActions({ userId }: ProductActionsProps) {
 
   return (
     <>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button onClick={() => setIsModalOpen(true)} className="gap-2">
           <span>+</span> Add Product
         </Button>
