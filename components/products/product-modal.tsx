@@ -87,7 +87,7 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
         // Create new product
         const { error } = await supabase.from("products").insert({
           ...formData,
-          organization_id: userId,
+          user_id: userId,
         })
         if (error) throw error
       }

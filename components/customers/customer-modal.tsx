@@ -84,7 +84,7 @@ export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerMod
       } else {
         const { error } = await supabase.from("customers").insert({
           ...dataToSave,
-          organization_id: userId,
+          user_id: userId,
           outstanding_balance: 0,
         })
         if (error) throw error

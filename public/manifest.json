@@ -2,7 +2,7 @@
   "name": "SweetFlow - Distribution Management",
   "short_name": "SweetFlow",
   "description": "Modern wholesale distribution management system for chocolates and candies",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#78350f",
   "theme_color": "#92400e",

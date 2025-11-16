@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 interface Customer {
   id: string
@@ -88,7 +88,7 @@ export function InvoiceModal({ isOpen, onClose, userId, customers, products }: I
       const { data: invoiceData, error: invoiceError } = await supabase
         .from("invoices")
         .insert({
-          organization_id: userId,
+          user_id: userId,
           customer_id: formData.customer_id,
           invoice_number: invoiceNumber,
           invoice_date: formData.invoice_date,
