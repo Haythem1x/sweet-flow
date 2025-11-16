@@ -1,10 +1,43 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+"use client"
 
-interface RecentOrdersProps {
-  invoices: any[]
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { createClient } from "@/lib/supabase/client"
+
+interface Invoice {
+  id: string
+  invoice_number: string
+  invoice_date: string
+  total_amount: number
+  payment_status: string
 }
 
-export function RecentOrders({ invoices }: RecentOrdersProps) {
+interface RecentOrdersProps {
+  userId: string
+}
+
+export function RecentOrders({ userId }: RecentOrdersProps) {
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const supabase = createClient()
+  
+  useEffect(() => {
+    const fetchInvoices = async () => {
+      const { data, error } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("user_id", userId)
+        .order("invoice_date", { ascending: false })
+        .limit(10)
+      if (error) {
+        console.error("Error fetching invoices:", error)
+      } else {
+        setInvoices(data)
+      }
+    }
+
+    fetchInvoices()
+  }, [userId, supabase])
+
   return (
     <Card className="hover:shadow-lg transition-shadow">
       <CardHeader>
