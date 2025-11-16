@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CustomerModal } from "./customer-modal"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
 
 interface Customer {
   id: string
@@ -27,15 +26,22 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
   const [searchTerm, setSearchTerm] = useState("")
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const supabase = createClient()
-  const router = useRouter()
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.shop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phone.includes(searchTerm),
-  )
+  const supabase = createClient()
+
+  // 🔥 FIX — update the list when modal saves data
+  const handleSaved = (updatedCustomer: Customer, isEdit: boolean) => {
+    if (isEdit) {
+      setCustomers((prev) =>
+        prev.map((c) => (c.id === updatedCustomer.id ? updatedCustomer : c))
+      )
+    } else {
+      setCustomers((prev) => [updatedCustomer, ...prev])
+    }
+
+    setIsModalOpen(false)
+    setEditingCustomer(null)
+  }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this customer?")) return
@@ -43,20 +49,15 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
     const { error } = await supabase.from("customers").delete().eq("id", id)
     if (!error) {
       setCustomers(customers.filter((c) => c.id !== id))
-      router.refresh()
     }
   }
 
-  const handleEdit = (customer: Customer) => {
-    setEditingCustomer(customer)
-    setIsModalOpen(true)
-  }
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setEditingCustomer(null)
-    router.refresh()
-  }
+  const filteredCustomers = customers.filter(
+    (c) =>
+      c.shop_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.phone.includes(searchTerm)
+  )
 
   const totalOutstanding = customers.reduce((sum, c) => sum + c.outstanding_balance, 0)
 
@@ -68,13 +69,15 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
             <div className="flex items-center gap-2">
               <span>🛒</span> Grocery Clients
             </div>
+            <Button onClick={() => setIsModalOpen(true)}>+ Add Customer</Button>
           </CardTitle>
+
           <CardDescription>
-            {customers.length} customers {totalOutstanding > 0 && `• ${totalOutstanding.toFixed(3)} TND outstanding`}
+            {customers.length} customers • {totalOutstanding.toFixed(3)} TND outstanding
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
-          {/* Search */}
           <Input
             placeholder="Search by shop name, owner, or phone..."
             value={searchTerm}
@@ -94,35 +97,37 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
                   <th className="text-center p-3 font-semibold">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredCustomers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-center p-6 text-muted-foreground">
+                    <td colSpan={6} className="text-center py-6 text-muted-foreground">
                       No customers found
                     </td>
                   </tr>
                 ) : (
                   filteredCustomers.map((customer) => (
-                    <tr key={customer.id} className="border-b hover:bg-muted/50">
-                      <td className="p-3 font-semibold">{customer.shop_name}</td>
+                    <tr key={customer.id} className="border-b hover:bg-muted/50 transition">
+                      <td className="p-3 font-medium">{customer.shop_name}</td>
                       <td className="p-3">{customer.owner_name}</td>
                       <td className="p-3">{customer.phone}</td>
                       <td className="p-3 text-xs text-muted-foreground">{customer.address}</td>
                       <td className="text-right p-3 font-semibold">
-                        <span className={customer.outstanding_balance > 0 ? "text-orange-600 font-bold" : ""}>
-                          {customer.outstanding_balance.toFixed(3)} TND
-                        </span>
+                        {customer.outstanding_balance.toFixed(3)} TND
                       </td>
-                      <td className="p-3">
+                      <td className="p-3 text-center">
                         <div className="flex justify-center gap-2">
-                          <Button size="sm" variant="outline" onClick={() => handleEdit(customer)} className="text-xs">
+                          <Button size="sm" variant="outline" onClick={() => {
+                            setEditingCustomer(customer)
+                            setIsModalOpen(true)
+                          }}>
                             Edit
                           </Button>
+
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={() => handleDelete(customer.id)}
-                            className="text-xs"
                           >
                             Delete
                           </Button>
@@ -134,69 +139,17 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
               </tbody>
             </table>
           </div>
-
-          <div className="md:hidden space-y-3">
-            {filteredCustomers.length === 0 ? (
-              <div className="text-center p-6 text-muted-foreground">No customers found</div>
-            ) : (
-              filteredCustomers.map((customer) => (
-                <Card key={customer.id} className="shadow-sm">
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-base leading-tight">{customer.shop_name}</h3>
-                        <p className="text-sm text-muted-foreground mt-1">{customer.owner_name}</p>
-                      </div>
-                      {customer.outstanding_balance > 0 && (
-                        <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ml-2">
-                          {customer.outstanding_balance.toFixed(3)} TND
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">📞</span>
-                        <a href={`tel:${customer.phone}`} className="text-primary hover:underline">
-                          {customer.phone}
-                        </a>
-                      </div>
-                      {customer.address && (
-                        <div className="flex items-start gap-2">
-                          <span className="text-muted-foreground">📍</span>
-                          <span className="text-muted-foreground text-xs leading-relaxed">{customer.address}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 pt-2 border-t">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(customer)}
-                        className="flex-1 h-9 text-xs"
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(customer.id)}
-                        className="flex-1 h-9 text-xs"
-                      >
-                        Delete
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
         </CardContent>
       </Card>
 
-      {/* Modal for add/edit */}
-      <CustomerModal isOpen={isModalOpen} onClose={handleCloseModal} customer={editingCustomer} userId={userId} />
+      {/* Modal */}
+      <CustomerModal
+        isOpen={isModalOpen}
+        onClose={() => { setIsModalOpen(false); setEditingCustomer(null) }}
+        customer={editingCustomer}
+        userId={userId}
+        onSaved={handleSaved}   // 🔥 FIX
+      />
     </>
   )
 }

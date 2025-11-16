@@ -1,13 +1,12 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { BarcodeScanner } from "./barcode-scanner"
 
 interface Product {
@@ -19,19 +18,27 @@ interface Product {
   selling_price: number
   stock_quantity: number
   barcode: string
-  expiry_date: string
+  expiry_date: string | null
+  user_id?: string
 }
 
 interface ProductModalProps {
   isOpen: boolean
   onClose: () => void
+  onSave?: (product: Product) => void
   product?: Product | null
-  userId: string
+  userId?: string
 }
 
 const categories = ["Chocolates", "Candies", "Biscuits", "Snacks", "Grocery Items"]
 
-export function ProductModal({ isOpen, onClose, product, userId }: ProductModalProps) {
+export function ProductModal({
+  isOpen,
+  onClose,
+  product,
+  userId,
+  onSave,
+}: ProductModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     category: categories[0],
@@ -51,14 +58,14 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
   useEffect(() => {
     if (product) {
       setFormData({
-        name: product.name,
-        category: product.category,
-        brand: product.brand,
-        cost_price: product.cost_price,
-        selling_price: product.selling_price,
-        stock_quantity: product.stock_quantity,
-        barcode: product.barcode,
-        expiry_date: product.expiry_date,
+        name: product.name ?? "",
+        category: product.category ?? categories[0],
+        brand: product.brand ?? "",
+        cost_price: product.cost_price ?? 0,
+        selling_price: product.selling_price ?? 0,
+        stock_quantity: product.stock_quantity ?? 0,
+        barcode: product.barcode ?? "",
+        expiry_date: product.expiry_date ?? "",
       })
     } else {
       setFormData({
@@ -79,22 +86,77 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
     setIsLoading(true)
 
     try {
-      if (product) {
-        // Update existing product
-        const { error } = await supabase.from("products").update(formData).eq("id", product.id)
-        if (error) throw error
-      } else {
-        // Create new product
-        const { error } = await supabase.from("products").insert({
-          ...formData,
-          user_id: userId,
-        })
-        if (error) throw error
+      // Try to get authenticated user id (preferred) but fallback to passed userId prop
+      const { data: authData } = await supabase.auth.getUser()
+      const authUserId = authData?.user?.id ?? userId
+
+      if (!authUserId) {
+        throw new Error("No authenticated user id available")
       }
-      router.refresh()
+
+      if (product) {
+        // Update existing product, return updated row
+        const { data, error } = await supabase
+          .from("products")
+          .update({
+            name: formData.name,
+            category: formData.category,
+            brand: formData.brand,
+            cost_price: formData.cost_price,
+            selling_price: formData.selling_price,
+            stock_quantity: formData.stock_quantity,
+            barcode: formData.barcode,
+            expiry_date: formData.expiry_date || null,
+          })
+          .eq("id", product.id)
+          .select()
+          .single()
+
+        if (error) {
+          console.error("UPDATE ERROR:", error)
+          throw error
+        }
+
+        // notify parent
+        onSave && onSave(data as Product)
+      } else {
+        // Insert new product, return created row
+        const { data, error } = await supabase
+          .from("products")
+          .insert({
+            name: formData.name,
+            category: formData.category,
+            brand: formData.brand,
+            cost_price: formData.cost_price,
+            selling_price: formData.selling_price,
+            stock_quantity: formData.stock_quantity,
+            barcode: formData.barcode,
+            expiry_date: formData.expiry_date || null,
+            user_id: authUserId,
+          })
+          .select()
+          .single()
+
+        if (error) {
+          console.error("INSERT ERROR:", error)
+          throw error
+        }
+
+        // notify parent
+        onSave && onSave(data as Product)
+      }
+
+      // close modal
       onClose()
-    } catch (error) {
-      console.error("Error saving product:", error)
+      // optional: refresh server components if needed
+      try {
+        router.refresh()
+      } catch (e) {
+        // ignore in client-only contexts
+      }
+    } catch (err) {
+      console.error("Error saving product:", err)
+      // You can also show a toast here
     } finally {
       setIsLoading(false)
     }
@@ -110,12 +172,9 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
   return (
     <>
       {showScanner && (
-        <BarcodeScanner
-          onScan={handleBarcodeScan}
-          onClose={() => setShowScanner(false)}
-        />
+        <BarcodeScanner onScan={handleBarcodeScan} onClose={() => setShowScanner(false)} />
       )}
-      
+
       <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4">
         <div className="bg-card rounded-lg shadow-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
           <h2 className="text-xl font-bold mb-4">{product ? "Edit Product" : "Add Product"}</h2>
@@ -166,7 +225,12 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
                   type="number"
                   step="0.001"
                   value={formData.cost_price}
-                  onChange={(e) => setFormData({ ...formData, cost_price: e.target.value === '' ? 0 : Number.parseFloat(e.target.value) })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      cost_price: e.target.value === "" ? 0 : Number.parseFloat(e.target.value),
+                    })
+                  }
                   required
                   className="h-9"
                 />
@@ -178,7 +242,12 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
                   type="number"
                   step="0.001"
                   value={formData.selling_price}
-                  onChange={(e) => setFormData({ ...formData, selling_price: e.target.value === '' ? 0 : Number.parseFloat(e.target.value) })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      selling_price: e.target.value === "" ? 0 : Number.parseFloat(e.target.value),
+                    })
+                  }
                   required
                   className="h-9"
                 />
@@ -191,7 +260,12 @@ export function ProductModal({ isOpen, onClose, product, userId }: ProductModalP
                 id="stock"
                 type="number"
                 value={formData.stock_quantity}
-                onChange={(e) => setFormData({ ...formData, stock_quantity: e.target.value === '' ? 0 : Number.parseInt(e.target.value) })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    stock_quantity: e.target.value === "" ? 0 : Number.parseInt(e.target.value),
+                  })
+                }
                 required
                 className="h-9"
               />

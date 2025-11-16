@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ProductModal } from "./product-modal"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 
 interface Product {
   id: string
@@ -17,16 +17,17 @@ interface Product {
   selling_price: number
   stock_quantity: number
   barcode: string
-  expiry_date: string
+  expiry_date: string | null
+  user_id?: string
 }
 
 interface ProductListProps {
   products: Product[]
-  userId: string
+  userId?: string
 }
 
 export function ProductList({ products: initialProducts, userId }: ProductListProps) {
-  const [products, setProducts] = useState(initialProducts)
+  const [products, setProducts] = useState<Product[]>(initialProducts ?? [])
   const [searchTerm, setSearchTerm] = useState("")
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -34,7 +35,9 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
   const router = useRouter()
 
   const filteredProducts = products.filter(
-    (p) => p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.barcode.includes(searchTerm),
+    (p) =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.barcode ?? "").includes(searchTerm),
   )
 
   const handleDelete = async (id: string) => {
@@ -42,8 +45,13 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
 
     const { error } = await supabase.from("products").delete().eq("id", id)
     if (!error) {
-      setProducts(products.filter((p) => p.id !== id))
-      router.refresh()
+      setProducts((prev) => prev.filter((p) => p.id !== id))
+      // If you have server components that need refresh, keep this
+      try {
+        router.refresh()
+      } catch (e) {}
+    } else {
+      console.error("Delete error:", error)
     }
   }
 
@@ -55,7 +63,27 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setEditingProduct(null)
-    router.refresh()
+  }
+
+  // Called when modal saves (insert or update)
+  const handleSave = (saved: Product) => {
+    setProducts((prev) => {
+      const exists = prev.some((p) => p.id === saved.id)
+      if (exists) {
+        // update
+        return prev.map((p) => (p.id === saved.id ? saved : p))
+      } else {
+        // insert at top
+        return [saved, ...prev]
+      }
+    })
+    // close modal and clear editing
+    setIsModalOpen(false)
+    setEditingProduct(null)
+    // If you rely on server-side data elsewhere, refresh
+    try {
+      router.refresh()
+    } catch (e) {}
   }
 
   const lowStockProducts = products.filter((p) => p.stock_quantity < 50)
@@ -111,7 +139,7 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <span className="text-muted-foreground">Cost:</span>
@@ -136,10 +164,10 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => handleEdit(product)} 
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(product)}
                         className="flex-1 text-xs touch-manipulation"
                       >
                         Edit
@@ -227,7 +255,13 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
       </Card>
 
       {/* Modal for add/edit */}
-      <ProductModal isOpen={isModalOpen} onClose={handleCloseModal} product={editingProduct} userId={userId} />
+      <ProductModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        product={editingProduct}
+        userId={userId}
+        onSave={handleSave}
+      />
     </>
   )
 }

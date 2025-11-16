@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
-import { MapPin } from 'lucide-react'
+import { useRouter } from "next/navigation"
+import { MapPin } from "lucide-react"
 
 interface Customer {
   id: string
@@ -26,9 +25,10 @@ interface CustomerModalProps {
   onClose: () => void
   customer?: Customer | null
   userId: string
+  onCustomerSaved?: () => void // optional callback to update parent state
 }
 
-export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerModalProps) {
+export function CustomerModal({ isOpen, onClose, customer, userId, onCustomerSaved }: CustomerModalProps) {
   const [formData, setFormData] = useState({
     shop_name: "",
     owner_name: "",
@@ -69,30 +69,44 @@ export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerMod
     setIsLoading(true)
 
     try {
+      // Trim inputs
       const dataToSave = {
-        shop_name: formData.shop_name,
-        owner_name: formData.owner_name,
-        phone: formData.phone,
-        address: formData.address,
+        shop_name: formData.shop_name.trim(),
+        owner_name: formData.owner_name.trim(),
+        phone: formData.phone.trim(),
+        address: formData.address.trim(),
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
       }
 
+      let error = null
+
       if (customer) {
-        const { error } = await supabase.from("customers").update(dataToSave).eq("id", customer.id)
-        if (error) throw error
+        const { error: updateError } = await supabase
+          .from("customers")
+          .update(dataToSave)
+          .eq("id", customer.id)
+        error = updateError
       } else {
-        const { error } = await supabase.from("customers").insert({
-          ...dataToSave,
-          user_id: userId,
-          outstanding_balance: 0,
-        })
-        if (error) throw error
+        const { error: insertError } = await supabase
+          .from("customers")
+          .insert({
+            ...dataToSave,
+            user_id: userId,
+            outstanding_balance: 0,
+          })
+        error = insertError
       }
-      router.refresh()
+
+      if (error) throw error
+
+      // Success feedback
+      alert(`Customer ${customer ? "updated" : "added"} successfully!`)
       onClose()
-    } catch (error) {
-      console.error("Error saving customer:", error)
+      onCustomerSaved?.() // optional callback
+    } catch (err: any) {
+      console.error("Error saving customer:", err)
+      alert("Failed to save customer: " + err.message)
     } finally {
       setIsLoading(false)
     }
@@ -119,6 +133,9 @@ export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerMod
   }
 
   if (!isOpen) return null
+
+  // Simple form validation: required fields
+  const isFormValid = formData.shop_name.trim() && formData.owner_name.trim() && formData.phone.trim()
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
@@ -188,9 +205,7 @@ export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerMod
 
             <div className="grid grid-cols-2 gap-2 sm:gap-3">
               <div>
-                <Label htmlFor="latitude" className="text-xs">
-                  Latitude
-                </Label>
+                <Label htmlFor="latitude" className="text-xs">Latitude</Label>
                 <Input
                   id="latitude"
                   type="number"
@@ -202,9 +217,7 @@ export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerMod
                 />
               </div>
               <div>
-                <Label htmlFor="longitude" className="text-xs">
-                  Longitude
-                </Label>
+                <Label htmlFor="longitude" className="text-xs">Longitude</Label>
                 <Input
                   id="longitude"
                   type="number"
@@ -231,7 +244,7 @@ export function CustomerModal({ isOpen, onClose, customer, userId }: CustomerMod
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 pt-4">
-            <Button type="submit" disabled={isLoading} className="flex-1 h-11 sm:h-10">
+            <Button type="submit" disabled={!isFormValid || isLoading} className="flex-1 h-11 sm:h-10">
               {isLoading ? "Saving..." : customer ? "Update" : "Add"} Customer
             </Button>
             <Button type="button" variant="outline" onClick={onClose} className="flex-1 h-11 sm:h-10 bg-transparent">
