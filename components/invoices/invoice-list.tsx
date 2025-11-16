@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 import { InvoiceViewModal } from "./invoice-view-modal"
 
 interface Invoice {
@@ -16,35 +16,51 @@ interface Invoice {
   paid_amount: number
   payment_status: "paid" | "partial" | "unpaid"
   customer_id: string
+  user_id?: string
 }
 
 interface InvoiceListProps {
-  invoices: Invoice[]
   userId: string
 }
 
-export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListProps) {
-  const [invoices, setInvoices] = useState(initialInvoices)
+export function InvoiceList({ userId }: InvoiceListProps) {
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterStatus, setFilterStatus] = useState<string>("all")
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+
   const supabase = createClient()
   const router = useRouter()
 
-  const filteredInvoices = invoices.filter((inv) => {
-    const matchesSearch = inv.invoice_number.includes(searchTerm)
-    const matchesStatus = filterStatus === "all" || inv.payment_status === filterStatus
-    return matchesSearch && matchesStatus
-  })
+  // Fetch invoices for the logged-in user
+  const fetchInvoices = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("*")
+      .eq("user_id", userId)
+      .order("invoice_date", { ascending: false })
+
+    if (error) console.error("Error fetching invoices:", error)
+    else setInvoices(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchInvoices()
+  }, [userId])
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this invoice?")) return
 
     const { error } = await supabase.from("invoices").delete().eq("id", id)
     if (!error) {
-      setInvoices(invoices.filter((i) => i.id !== id))
+      setInvoices((prev) => prev.filter((i) => i.id !== id))
       router.refresh()
+    } else {
+      console.error("Delete error:", error)
     }
   }
 
@@ -54,17 +70,27 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
   }
 
   const handleStatusChange = (invoiceId: string, newStatus: "paid" | "partial" | "unpaid") => {
-    setInvoices(invoices.map(inv => 
-      inv.id === invoiceId ? { ...inv, payment_status: newStatus } : inv
-    ))
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === invoiceId ? { ...inv, payment_status: newStatus } : inv
+      )
+    )
     router.refresh()
   }
+
+  const filteredInvoices = invoices.filter((inv) => {
+    const matchesSearch = inv.invoice_number.includes(searchTerm)
+    const matchesStatus = filterStatus === "all" || inv.payment_status === filterStatus
+    return matchesSearch && matchesStatus
+  })
 
   const stats = {
     paid: invoices.filter((i) => i.payment_status === "paid").length,
     partial: invoices.filter((i) => i.payment_status === "partial").length,
     unpaid: invoices.filter((i) => i.payment_status === "unpaid").length,
   }
+
+  if (loading) return <div>Loading invoices...</div>
 
   return (
     <>
@@ -77,6 +103,7 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
             Total: {invoices.length} • Paid: {stats.paid} • Partial: {stats.partial} • Unpaid: {stats.unpaid}
           </CardDescription>
         </CardHeader>
+
         <CardContent className="space-y-4">
           {/* Filters */}
           <div className="flex gap-4 flex-col sm:flex-row">
@@ -120,14 +147,14 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
                             invoice.payment_status === "paid"
                               ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                               : invoice.payment_status === "partial"
-                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+                              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                           }`}
                         >
                           {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}
                         </span>
                       </div>
-                      
+
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div>
                           <span className="text-muted-foreground">Total:</span>
@@ -147,7 +174,7 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
                         <Button 
                           size="sm" 
                           variant="outline" 
-                          className="flex-1 text-xs bg-transparent touch-manipulation"
+                          className="flex-1 text-xs bg-transparent"
                           onClick={() => handleView(invoice)}
                         >
                           View
@@ -205,8 +232,8 @@ export function InvoiceList({ invoices: initialInvoices, userId }: InvoiceListPr
                               invoice.payment_status === "paid"
                                 ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
                                 : invoice.payment_status === "partial"
-                                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
-                                  : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                                ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+                                : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
                             }`}
                           >
                             {invoice.payment_status.charAt(0).toUpperCase() + invoice.payment_status.slice(1)}

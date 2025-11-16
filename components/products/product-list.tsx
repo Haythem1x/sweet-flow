@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,18 +21,33 @@ interface Product {
   user_id?: string
 }
 
-interface ProductListProps {
-  products: Product[]
-  userId?: string
-}
-
-export function ProductList({ products: initialProducts, userId }: ProductListProps) {
-  const [products, setProducts] = useState<Product[]>(initialProducts ?? [])
+export function ProductList() {
+  const [products, setProducts] = useState<Product[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const router = useRouter()
+
+  // Fetch products for logged-in user
+  const fetchProducts = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("products")
+      .select("*")
+      .order("name", { ascending: true }) // optional
+    if (error) {
+      console.error("Fetch products error:", error)
+    } else {
+      setProducts(data ?? [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchProducts()
+  }, [])
 
   const filteredProducts = products.filter(
     (p) =>
@@ -40,16 +55,14 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
       (p.barcode ?? "").includes(searchTerm),
   )
 
+  const lowStockProducts = products.filter((p) => p.stock_quantity < 50)
+
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this product?")) return
-
     const { error } = await supabase.from("products").delete().eq("id", id)
     if (!error) {
       setProducts((prev) => prev.filter((p) => p.id !== id))
-      // If you have server components that need refresh, keep this
-      try {
-        router.refresh()
-      } catch (e) {}
+      router.refresh()
     } else {
       console.error("Delete error:", error)
     }
@@ -65,28 +78,21 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
     setEditingProduct(null)
   }
 
-  // Called when modal saves (insert or update)
   const handleSave = (saved: Product) => {
     setProducts((prev) => {
       const exists = prev.some((p) => p.id === saved.id)
       if (exists) {
-        // update
         return prev.map((p) => (p.id === saved.id ? saved : p))
       } else {
-        // insert at top
         return [saved, ...prev]
       }
     })
-    // close modal and clear editing
     setIsModalOpen(false)
     setEditingProduct(null)
-    // If you rely on server-side data elsewhere, refresh
-    try {
-      router.refresh()
-    } catch (e) {}
+    router.refresh()
   }
 
-  const lowStockProducts = products.filter((p) => p.stock_quantity < 50)
+  if (loading) return <div className="p-4">Loading products...</div>
 
   return (
     <>
@@ -100,7 +106,7 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
           <CardDescription className="text-xs sm:text-sm">{products.length} products in system</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Search and alerts */}
+          {/* Search and low stock alerts */}
           <div className="space-y-4">
             <Input
               placeholder="Search by product name or barcode..."
@@ -112,7 +118,7 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
             {lowStockProducts.length > 0 && (
               <div className="p-3 bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg">
                 <p className="text-xs sm:text-sm font-semibold text-orange-900 dark:text-orange-100">
-                  ⚠️ {lowStockProducts.length} products with low stock ({`<50 units`})
+                  ⚠️ {lowStockProducts.length} products with low stock (&lt;50 units)
                 </p>
               </div>
             )}
@@ -129,9 +135,7 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
                     <div className="flex justify-between items-start">
                       <div className="space-y-1 flex-1">
                         <h3 className="font-semibold text-base">{product.name}</h3>
-                        <p className="text-xs text-muted-foreground">
-                          {product.category} • {product.brand}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{product.category} • {product.brand}</p>
                       </div>
                       {product.stock_quantity < 50 && (
                         <span className="text-xs bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100 px-2 py-1 rounded">
@@ -164,20 +168,10 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
                     </div>
 
                     <div className="flex gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(product)}
-                        className="flex-1 text-xs touch-manipulation"
-                      >
+                      <Button size="sm" variant="outline" onClick={() => handleEdit(product)} className="flex-1 text-xs">
                         Edit
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(product.id)}
-                        className="flex-1 text-xs touch-manipulation"
-                      >
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(product.id)} className="flex-1 text-xs">
                         Delete
                       </Button>
                     </div>
@@ -187,7 +181,7 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
             )}
           </div>
 
-          {/* Desktop table view */}
+          {/* Desktop view */}
           <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted">
@@ -235,12 +229,7 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
                           <Button size="sm" variant="outline" onClick={() => handleEdit(product)} className="text-xs">
                             Edit
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDelete(product.id)}
-                            className="text-xs"
-                          >
+                          <Button size="sm" variant="destructive" onClick={() => handleDelete(product.id)} className="text-xs">
                             Delete
                           </Button>
                         </div>
@@ -254,12 +243,11 @@ export function ProductList({ products: initialProducts, userId }: ProductListPr
         </CardContent>
       </Card>
 
-      {/* Modal for add/edit */}
+      {/* Modal */}
       <ProductModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         product={editingProduct}
-        userId={userId}
         onSave={handleSave}
       />
     </>

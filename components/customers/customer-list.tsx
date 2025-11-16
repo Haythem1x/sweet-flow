@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,22 +14,38 @@ interface Customer {
   phone: string
   address: string
   outstanding_balance: number
+  user_id?: string
 }
 
-interface CustomerListProps {
-  customers: Customer[]
-  userId: string
-}
-
-export function CustomerList({ customers: initialCustomers, userId }: CustomerListProps) {
-  const [customers, setCustomers] = useState(initialCustomers)
+export function CustomerList() {
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
 
-  // 🔥 FIX — update the list when modal saves data
+  // 🔥 Fetch customers for logged-in user (RLS will automatically apply)
+  const fetchCustomers = async () => {
+    setLoading(true)
+    const { data, error } = await supabase
+      .from("customers")
+      .select("*")
+      .order("shop_name", { ascending: true })
+
+    if (error) {
+      console.error("Fetch customers error:", error)
+    } else {
+      setCustomers(data ?? [])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchCustomers()
+  }, [])
+
   const handleSaved = (updatedCustomer: Customer, isEdit: boolean) => {
     if (isEdit) {
       setCustomers((prev) =>
@@ -48,7 +64,9 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
 
     const { error } = await supabase.from("customers").delete().eq("id", id)
     if (!error) {
-      setCustomers(customers.filter((c) => c.id !== id))
+      setCustomers((prev) => prev.filter((c) => c.id !== id))
+    } else {
+      console.error("Delete customer error:", error)
     }
   }
 
@@ -61,6 +79,8 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
 
   const totalOutstanding = customers.reduce((sum, c) => sum + c.outstanding_balance, 0)
 
+  if (loading) return <div className="p-4">Loading customers...</div>
+
   return (
     <>
       <Card>
@@ -71,7 +91,6 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
             </div>
             <Button onClick={() => setIsModalOpen(true)}>+ Add Customer</Button>
           </CardTitle>
-
           <CardDescription>
             {customers.length} customers • {totalOutstanding.toFixed(3)} TND outstanding
           </CardDescription>
@@ -147,8 +166,7 @@ export function CustomerList({ customers: initialCustomers, userId }: CustomerLi
         isOpen={isModalOpen}
         onClose={() => { setIsModalOpen(false); setEditingCustomer(null) }}
         customer={editingCustomer}
-        userId={userId}
-        onSaved={handleSaved}   // 🔥 FIX
+        onSaved={handleSaved} // 🔥 fixed
       />
     </>
   )
