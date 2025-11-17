@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from 'next/navigation'
+import Image from "next/image"
 
 interface BusinessSettings {
   id: string
@@ -17,6 +18,7 @@ interface BusinessSettings {
   tax_rate: number
   invoice_prefix: string
   organization_id: string
+  business_logo_url: string | null
 }
 
 interface BusinessSettingsProps {
@@ -25,51 +27,105 @@ interface BusinessSettingsProps {
 }
 
 export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
+  const supabase = createClient()
+  const router = useRouter()
+
   const [isEditing, setIsEditing] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+
   const [formData, setFormData] = useState({
     business_name: settings?.business_name || "My Business",
     currency: settings?.currency || "TND",
     tax_rate: settings?.tax_rate || 0,
     invoice_prefix: settings?.invoice_prefix || "INV-",
+    business_logo_url: settings?.business_logo_url ?? null,
   })
-  const [isLoading, setIsLoading] = useState(false)
+
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const supabase = createClient()
-  const router = useRouter()
+
+  // --------------------------------------------------------------------
+  //  LOGO UPLOAD HANDLER
+  // --------------------------------------------------------------------
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    try {
+      setIsUploading(true)
+      setError(null)
+
+      const fileExt = file.name.split(".").pop()
+      const fileName = `${settings?.id}-${Date.now()}.${fileExt}`
+      const filePath = `logos/${fileName}`
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from("business_logos")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+        })
+
+      if (uploadError) throw uploadError
+
+      // Get PUBLIC URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("business_logos").getPublicUrl(filePath)
+
+      // Update formData instantly
+      setFormData((prev) => ({
+        ...prev,
+        business_logo_url: publicUrl,
+      }))
+
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 2000)
+
+    } catch (err: any) {
+      console.error(err)
+      setError(err.message || "Failed to upload logo")
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // --------------------------------------------------------------------
+  //  SAVE BUSINESS SETTINGS
+  // --------------------------------------------------------------------
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError(null)
     setSuccess(false)
 
     try {
-      console.log("[v0] Updating business settings with data:", formData)
+      const updateData = { ...formData }
 
       if (settings) {
-        const { error } = await supabase.from("business_settings").update(formData).eq("id", settings.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from("business_settings").insert({
-          organization_id: userId,
-          ...formData,
-        })
+        const { error } = await supabase
+          .from("business_settings")
+          .update(updateData)
+          .eq("id", settings.id)
+
         if (error) throw error
       }
 
       setSuccess(true)
       setIsEditing(false)
-      setTimeout(() => setSuccess(false), 3000)
       router.refresh()
-    } catch (error) {
-      console.error("[v0] Error updating settings:", error)
-      setError(error instanceof Error ? error.message : "Failed to update business settings")
-    } finally {
-      setIsLoading(false)
+
+    } catch (error: any) {
+      console.error(error)
+      setError(error.message || "Failed to update business settings")
     }
   }
 
+  // --------------------------------------------------------------------
+  //  UI
+  // --------------------------------------------------------------------
   return (
     <Card>
       <CardHeader>
@@ -78,8 +134,46 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
         </CardTitle>
         <CardDescription>Configure your business information</CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
+
+          {/* LOGO PREVIEW + UPLOAD */}
+          <div className="space-y-2">
+            <Label>Business Logo</Label>
+
+            <div className="flex items-center gap-4">
+              {/* Image Preview */}
+              <div className="w-20 h-20 border rounded-md bg-gray-50 flex items-center justify-center overflow-hidden">
+                {formData.business_logo_url ? (
+                  <Image
+                    src={formData.business_logo_url}
+                    alt="Business Logo"
+                    width={80}
+                    height={80}
+                    className="object-cover"
+                  />
+                ) : (
+                  <span className="text-sm text-gray-400">No Logo</span>
+                )}
+              </div>
+
+              {/* Upload Button */}
+              {isEditing && (
+                <div>
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    disabled={isUploading}
+                  />
+                  {isUploading && <p className="text-sm text-gray-500">Uploading...</p>}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* FORM FIELDS */}
           <div>
             <Label htmlFor="business_name">Business Name *</Label>
             <Input
@@ -141,28 +235,22 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
 
           {success && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-md text-sm text-green-600">
-              Business settings updated successfully!
+              Saved successfully!
             </div>
           )}
 
+          {/* BUTTONS */}
           <div className="flex gap-2 pt-4">
             {!isEditing ? (
               <Button className="w-full" asChild>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(true)
-                    setError(null)
-                    setSuccess(false)
-                  }}
-                >
+                <button type="button" onClick={() => setIsEditing(true)}>
                   Edit Settings
                 </button>
               </Button>
             ) : (
               <>
-                <Button type="submit" disabled={isLoading} className="flex-1">
-                  {isLoading ? "Saving..." : "Save Settings"}
+                <Button type="submit" className="flex-1">
+                  Save Settings
                 </Button>
 
                 <Button variant="outline" className="flex-1" asChild>
@@ -175,6 +263,7 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
                         currency: settings?.currency || "TND",
                         tax_rate: settings?.tax_rate || 0,
                         invoice_prefix: settings?.invoice_prefix || "INV-",
+                        business_logo_url: settings?.business_logo_url ?? null,
                       })
                       setError(null)
                       setSuccess(false)
@@ -186,6 +275,7 @@ export function BusinessSettings({ settings, userId }: BusinessSettingsProps) {
               </>
             )}
           </div>
+
         </form>
       </CardContent>
     </Card>
